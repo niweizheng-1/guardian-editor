@@ -1,0 +1,8 @@
+{
+  "name": "guardian-editor",
+  "version": "1.0.0",
+  "description": "AIと会話しながらサイトを編集するツール",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.52.0"
+  }
+}

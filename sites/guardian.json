@@ -1,0 +1,24 @@
+{
+  "id": "guardian",
+  "name": "守護神サイト",
+  "repo": "niweizheng-1/unarai",
+  "url": "https://unarai.vercel.app",
+  "description": "占いと守護神召喚サイト",
+  "editable_files": [
+    "index.html",
+    "styles.css",
+    "app.js",
+    "guardian.js",
+    "guardian-free.html",
+    "guardian-monthly.html",
+    "products.html",
+    "articles.html"
+  ],
+  "knowledge_file": "knowledge/fortune.json",
+  "style_guide": {
+    "tone": "やさしく、背中を押す。不安を煽らない。",
+    "avoid": ["断定的な表現", "不安を煽る言葉"],
+    "prefer": ["共感から始める", "行動ヒントで締める"],
+    "length": "80〜120文字"
+  }
+}
