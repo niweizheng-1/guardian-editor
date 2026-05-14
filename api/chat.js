@@ -275,13 +275,14 @@ module.exports = async function handler(req, res) {
       }
 
       extraMessages.push({ role: 'assistant', content: response.content });
+      extraMessages.push({ role: 'user', content: results });
 
       response = await client.messages.create({
         model: 'claude-sonnet-4-6',
         max_tokens: 8096,
         system: systemPrompt,
         tools: TOOLS,
-        messages: [...messages, ...extraMessages, { role: 'user', content: results }]
+        messages: [...messages, ...extraMessages]
       });
     }
 

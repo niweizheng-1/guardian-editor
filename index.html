@@ -392,6 +392,31 @@
 
   #send-btn svg { width: 18px; height: 18px; fill: white; }
 
+  #upload-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.2s;
+    font-size: 1.1rem;
+  }
+
+  #upload-btn:hover { background: rgba(124,58,237,0.2); border-color: rgba(124,58,237,0.5); }
+  #upload-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .upload-progress {
+    font-size: 0.8rem;
+    color: var(--spirit-light);
+    margin-top: 6px;
+    display: none;
+  }
+
   .input-hint {
     font-size: 0.72rem;
     color: var(--muted);
@@ -476,12 +501,15 @@
 
   <div class="input-area">
     <div class="input-row">
+      <button id="upload-btn" onclick="document.getElementById('file-input').click()" title="画像・動画をアップロード">📎</button>
+      <input type="file" id="file-input" accept="image/*,video/*" style="display:none" onchange="handleFileSelect(event)">
       <textarea id="user-input" rows="1" placeholder="例: トップページのキャッチコピーをもっとかっこよくして" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
       <button id="send-btn" onclick="sendMessage()">
         <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
       </button>
     </div>
-    <div class="input-hint">Enterで送信 / Shift+Enterで改行</div>
+    <div class="upload-progress" id="upload-progress">⏳ アップロード中...</div>
+    <div class="input-hint">Enterで送信 / Shift+Enterで改行 / 📎で画像・動画をアップロード</div>
   </div>
 </div>
 
@@ -586,6 +614,98 @@
       .replace(/\n/g, '<br>')
       .replace(/^(?!<[hul])/, '<p>')
       .replace(/(?<![>])$/, '</p>');
+  }
+
+  // ── File upload ──
+  async function handleFileSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    event.target.value = '';
+
+    const MAX_SIZE = 4 * 1024 * 1024; // 4MB limit
+    const isImage = file.type.startsWith('image/');
+    const isVideo = file.type.startsWith('video/');
+
+    if (!isImage && !isVideo) {
+      appendMsg('assistant', '❌ 画像か動画ファイルを選択してください。');
+      return;
+    }
+
+    document.getElementById('upload-progress').style.display = 'block';
+    document.getElementById('upload-btn').disabled = true;
+
+    try {
+      let base64;
+      if (isImage) {
+        base64 = await compressImage(file);
+      } else {
+        if (file.size > MAX_SIZE) {
+          appendMsg('assistant', `❌ 動画ファイルが大きすぎます（${(file.size/1024/1024).toFixed(1)}MB）。5MB以下の短い動画か、YouTubeにアップしてURLを教えてください。`);
+          return;
+        }
+        base64 = await fileToBase64(file);
+      }
+
+      const timestamp = Date.now();
+      const ext = file.name.split('.').pop() || (isImage ? 'jpg' : 'mp4');
+      const filename = `${timestamp}.${ext}`;
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename,
+          contentBase64: base64,
+          mimeType: file.type,
+          password: PASSWORD,
+          siteId: 'guardian'
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        appendMsg('assistant', `❌ アップロード失敗: ${data.error}`);
+      } else {
+        appendMsg('assistant', `✅ アップロード完了！\nURL: \`${data.url}\`\n\nこのURLをサイトで使いたい場合は「このURLを○○に使って」と教えてください。`);
+      }
+    } catch (e) {
+      appendMsg('assistant', `❌ アップロードエラー: ${e.message}`);
+    } finally {
+      document.getElementById('upload-progress').style.display = 'none';
+      document.getElementById('upload-btn').disabled = false;
+    }
+  }
+
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function compressImage(file) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const MAX = 1920;
+        let w = img.width, h = img.height;
+        if (w > MAX || h > MAX) {
+          if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+          else { w = Math.round(w * MAX / h); h = MAX; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        const base64 = canvas.toDataURL('image/jpeg', 0.82).split(',')[1];
+        resolve(base64);
+      };
+      img.onerror = reject;
+      img.src = url;
+    });
   }
 
   // ── Send message ──
