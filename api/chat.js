@@ -243,6 +243,7 @@ module.exports = async function handler(req, res) {
 
   if (password !== EDITOR_PASSWORD) return res.status(401).json({ error: 'パスワードが違います' });
   if (!message) return res.status(400).json({ error: 'メッセージがありません' });
+  if (!ANTHROPIC_KEY) return res.status(500).json({ error: '❌ ANTHROPIC_API_KEY が Vercel に設定されていません。Settings → Environment Variables を確認してください。' });
 
   const siteConfig = await loadSiteConfig(siteId);
   const client = new Anthropic({ apiKey: ANTHROPIC_KEY });
